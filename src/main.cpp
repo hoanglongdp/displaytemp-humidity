@@ -1,215 +1,171 @@
 #include <Arduino.h>
-#include "DHT.h"
+#include <DHT.h>
+#include <DHT_U.h>
 
-#define DATA 5
-#define ST 4
-#define SH 3
+#define led4 2
+#define led3 3
+#define led2 4
+#define led1 5
+#define latch 7
+#define data 8
+#define clock 9
+#define dht_pin 10
+#define status 11
 
-const int DHT_Pin = 2;
-const int DHT_Type = DHT11;
-DHT dht(DHT_Pin, DHT_Type);
+DHT dht(dht_pin, DHT11);
 
-void SelectPort(int num);
-void PrintNumber(int num);
-void Clear();
+void latch_enable()
+{
+  digitalWrite(latch, HIGH);
+  delayMicroseconds(500);
+  digitalWrite(latch, LOW);
+}
 
+void clock_enable()
+{
+  digitalWrite(clock, HIGH);
+  delayMicroseconds(500);
+  digitalWrite(clock, LOW);
+  delayMicroseconds(500);
+}
 
-void setup() {
+void send_Data(int x)
+{
+  for (int i = 0; i < 8; i++)
+  {
+    if (x >> i & 1)
+      digitalWrite(data, HIGH);
+    else
+      digitalWrite(data, LOW);
+    clock_enable();
+  }
+  latch_enable();
+}
+
+void port_enable(int x)
+{
+  digitalWrite(x, HIGH);
+}
+
+void port_disable(int x)
+{
+  digitalWrite(x, LOW);
+}
+
+void clear()
+{
+  send_Data(0xFF);
+}
+
+int numberNoDot[] =
+    {0b00000011, 0b10011111, 0b00100101,
+     0b00001101, 0b10011001, 0b01001001,
+     0b01000001, 0b00011111, 0b00000001, 0b00001001};
+
+int numberWithDot[] =
+    {0b00000010, 0b10011110, 0b00100100,
+     0b00001100, 0b10011000, 0b01001000,
+     0b01000000, 0b00011110, 0b00000000, 0b00001000};
+
+void setup()
+{
   // put your setup code here, to run once:
+  pinMode(latch, OUTPUT);
+  pinMode(data, OUTPUT);
+  pinMode(clock, OUTPUT);
+  pinMode(led1, OUTPUT);
+  pinMode(led2, OUTPUT);
+  pinMode(led3, OUTPUT);
+  pinMode(led4, OUTPUT);
+  pinMode(status, INPUT);
   Serial.begin(9600);
   dht.begin();
-  pinMode(6, OUTPUT);
-  pinMode(7, OUTPUT);
-  pinMode(8, OUTPUT);
-  pinMode(9, OUTPUT);
-  pinMode(10, OUTPUT);
-  pinMode(11, OUTPUT);
-  pinMode(12, OUTPUT);
-  pinMode(13, OUTPUT);
-  pinMode(ST, OUTPUT);
-  pinMode(SH, OUTPUT);
-  pinMode(DATA, OUTPUT);
+  digitalWrite(led1, LOW);
+  digitalWrite(led2, LOW);
+  digitalWrite(led3, LOW);
+  digitalWrite(led4, LOW);
+  digitalWrite(latch, LOW);
+  digitalWrite(clock, LOW);
 }
-
-void loop() {
+int count = 1;
+void loop()
+{
   // put your main code here, to run repeatedly:
-  int humi = dht.readHumidity();
-  int temp = dht.readTemperature();
-  Serial.print("Humidity: ");
-  Serial.println(humi);
+  int buttonStatus = digitalRead(status);
+  double t = dht.readTemperature();
+  double h = dht.readHumidity();
   Serial.print("Temperature: ");
-  Serial.println(temp);
-  delay(5);
-  int num1 = humi / 10;
-  int num2 = humi % 10;
-  int num3 = temp / 10;
-  int num4 = temp % 10;
-  for (int i=0; i<25; i++) {
-    SelectPort(1);
-    PrintNumber(num1);
-    delay(5);
-    SelectPort(2);
-    PrintNumber(num2);
-    delay(5);
-    SelectPort(3);
-    PrintNumber(num3);
-    delay(5);
-    SelectPort(4);
-    PrintNumber(num4);
-    delay(5);
-  }
-    
-
-  // SelectPort(2);
-  // for (int i=0; i<=9; i++) {
-  //   PrintNumber(i);
-  //   delay(1000);
-  // }
-}
-
-void SelectPort(int num) {
-  switch (num)
+  Serial.println(t);
+  Serial.print("Humidity: ");
+  Serial.println(h);
+  int t1 = (int)t / 10;
+  int t2 = (int)t % 10;
+  int t3 = (int)(t * 10) % 10;
+  int t4 = (int)(t * 100) % 10;
+  int h1 = (int)h / 10;
+  int h2 = (int)h % 10;
+  int h3 = (int)(h * 10) % 10;
+  int h4 = (int)(h * 100) % 10;
+  if (buttonStatus)
   {
-  case 1:
-    digitalWrite(ST, LOW);
-    shiftOut(DATA, SH, MSBFIRST, 1);
-    digitalWrite(ST, HIGH);
-    break;
-  case 2:
-    digitalWrite(ST, LOW);
-    shiftOut(DATA, SH, MSBFIRST, 2);
-    digitalWrite(ST, HIGH);
-    break;
-  case 3:
-    digitalWrite(ST, LOW);
-    shiftOut(DATA, SH, MSBFIRST, 4);
-    digitalWrite(ST, HIGH);
-    break;
-  case 4:
-    digitalWrite(ST, LOW);
-    shiftOut(DATA, SH, MSBFIRST, 8);
-    digitalWrite(ST, HIGH);
-    break;
-  case 5:
-    digitalWrite(ST, LOW);
-    shiftOut(DATA, SH, MSBFIRST, 15);
-    digitalWrite(ST, HIGH);
-    break;
+    ++count;
+    if (count == 10)
+      count = 1;
   }
-}
+  // Serial.print("Counter: ");
+  // Serial.println(count);
+  if (count % 2 == 0)
+  {
+    for (int i = 1; i < 25; i++)
+    {
 
-void PrintNumber(int num) {
-  switch (num) {
-    case 0:
-      digitalWrite(6, LOW);
-      digitalWrite(7, LOW);
-      digitalWrite(8, LOW);
-      digitalWrite(9, LOW);
-      digitalWrite(10, LOW);
-      digitalWrite(11, LOW);
-      digitalWrite(12, HIGH);
-      digitalWrite(13, HIGH);
-      break;
-    case 1:
-      digitalWrite(6, HIGH);
-      digitalWrite(7, LOW);
-      digitalWrite(8, LOW);
-      digitalWrite(9, HIGH);
-      digitalWrite(10, HIGH);
-      digitalWrite(11, HIGH);
-      digitalWrite(12, HIGH);
-      digitalWrite(13, HIGH);
-      break;
-    case 2:
-      digitalWrite(6, LOW);
-      digitalWrite(7, LOW);
-      digitalWrite(8, HIGH);
-      digitalWrite(9, LOW);
-      digitalWrite(10, LOW);
-      digitalWrite(11, HIGH);
-      digitalWrite(12, LOW);
-      digitalWrite(13, HIGH);
-      break;
-    case 3:
-      digitalWrite(6, LOW);
-      digitalWrite(7, LOW);
-      digitalWrite(8, LOW);
-      digitalWrite(9, LOW);
-      digitalWrite(10, HIGH);
-      digitalWrite(11, HIGH);
-      digitalWrite(12, LOW);
-      digitalWrite(13, HIGH);
-      break;
-    case 4:
-      digitalWrite(6, HIGH);
-      digitalWrite(7, LOW);
-      digitalWrite(8, LOW);
-      digitalWrite(9, HIGH);
-      digitalWrite(10, HIGH);
-      digitalWrite(11, LOW);
-      digitalWrite(12, LOW);
-      digitalWrite(13, HIGH);
-      break;
-    case 5:
-      digitalWrite(6, LOW);
-      digitalWrite(7, HIGH);
-      digitalWrite(8, LOW);
-      digitalWrite(9, LOW);
-      digitalWrite(10, HIGH);
-      digitalWrite(11, LOW);
-      digitalWrite(12, LOW);
-      digitalWrite(13, HIGH);
-      break;
-    case 6:
-      digitalWrite(6, LOW);
-      digitalWrite(7, HIGH);
-      digitalWrite(8, LOW);
-      digitalWrite(9, LOW);
-      digitalWrite(10, LOW);
-      digitalWrite(11, LOW);
-      digitalWrite(12, LOW);
-      digitalWrite(13, HIGH);
-      break;
-    case 7:
-      digitalWrite(6, LOW);
-      digitalWrite(7, LOW);
-      digitalWrite(8, LOW);
-      digitalWrite(9, HIGH);
-      digitalWrite(10, HIGH);
-      digitalWrite(11, HIGH);
-      digitalWrite(12, HIGH);
-      digitalWrite(13, HIGH);
-      break;
-    case 8:
-      digitalWrite(6, LOW);
-      digitalWrite(7, LOW);
-      digitalWrite(8, LOW);
-      digitalWrite(9, LOW);
-      digitalWrite(10, LOW);
-      digitalWrite(11, LOW);
-      digitalWrite(12, LOW);
-      digitalWrite(13, HIGH);
-      break;
-    case 9:
-      digitalWrite(6, LOW);
-      digitalWrite(7, LOW);
-      digitalWrite(8, LOW);
-      digitalWrite(9, LOW);
-      digitalWrite(10, HIGH);
-      digitalWrite(11, LOW);
-      digitalWrite(12, LOW);
-      digitalWrite(13, HIGH);
-      break;
+      clear();
+      port_enable(led1);
+      send_Data(numberNoDot[t1]);
+      delay(2);
+      port_disable(led1);
+      clear();
+      port_enable(led2);
+      send_Data(numberWithDot[t2]);
+      delay(2);
+      port_disable(led2);
+      clear();
+      port_enable(led3);
+      send_Data(numberNoDot[t3]);
+      delay(2);
+      port_disable(led3);
+      clear();
+      port_enable(led4);
+      send_Data(numberNoDot[t4]);
+      delay(2);
+      port_disable(led4);
+    }
   }
-}
+  else
+  {
+    for (int i = 1; i < 25; i++)
+    {
 
-void Clear() {
-  digitalWrite(6, HIGH);
-  digitalWrite(7, HIGH);
-  digitalWrite(8, HIGH);
-  digitalWrite(9, HIGH);
-  digitalWrite(10, HIGH);
-  digitalWrite(11, HIGH);
-  digitalWrite(12, HIGH);
-  digitalWrite(13, HIGH);
+      clear();
+      port_enable(led1);
+      send_Data(numberNoDot[h1]);
+      delay(2);
+      port_disable(led1);
+      clear();
+      port_enable(led2);
+      send_Data(numberWithDot[h2]);
+      delay(2);
+      port_disable(led2);
+      clear();
+      port_enable(led3);
+      send_Data(numberNoDot[h3]);
+      delay(2);
+      port_disable(led3);
+      clear();
+      port_enable(led4);
+      send_Data(numberNoDot[h4]);
+      delay(2);
+      port_disable(led4);
+    }
+  }
 }
